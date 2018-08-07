@@ -1,0 +1,79 @@
+gfx read nodes UndeformedGeometry.part0.exnode
+gfx read elements UndeformedGeometry.exelem
+gfx def faces egroup Region
+
+gfx read data syntheticDataCoordinates;
+
+gfx read nodes syntheticQuaternions;
+
+
+gfx define field cube_location find_mesh_location mesh mesh3d mesh_field Geometry source_field data_coordinates;
+
+gfx define field Q embedded element_xi cube_location field Quaternions;
+gfx define field M quaternion_to_matrix field Q;
+gfx define field R composite M.1 M.2 M.3 M.5 M.6 M.7 M.9 M.10 M.11;
+
+
+gfx define field F constant 1 0 0;
+gfx define field G constant 0 1 0;
+gfx define field H constant 0 0 1;
+
+
+
+gfx define field host_fibre_vector matrix_multiply number_of_rows 3 fields R F;
+gfx define field host_sheet_vector matrix_multiply number_of_rows 3 fields R G;
+gfx define field host_normal_vector matrix_multiply number_of_rows 3 fields R H;
+
+
+
+gfx cre win
+gfx edit scene
+
+gfx create spectrum Q1;
+gfx modify spectrum Q1 clear overwrite_colour;
+gfx modify spectrum Q1 linear range 0 1 rainbow colour_range 0 1 component 1;
+gfx create spectrum Q2;
+gfx modify spectrum Q2 clear overwrite_colour;
+gfx modify spectrum Q2 linear range 0 1 rainbow colour_range 0 1 component 2;
+gfx create spectrum Q3;
+gfx modify spectrum Q3 clear overwrite_colour;
+gfx modify spectrum Q3 linear range 0 1 rainbow colour_range 0 1 component 3;
+gfx create spectrum Q4;
+gfx modify spectrum Q4 clear overwrite_colour;
+gfx modify spectrum Q4 linear range 0 1 rainbow colour_range 0 1 component 4;
+
+gfx modify g_element "/" general clear;
+gfx modify g_element "/" points domain_nodes as nodeNumbers coordinate Geometry tessellation default_points LOCAL glyph sphere size "0.1*0.1*0.1" offset 0,0,0 font default label cmiss_number label_offset "1,1,-1" select_on invisible material default selected_material default_selected render_shaded;
+gfx modify g_element "/" points domain_nodes as QuaternionValues coordinate Geometry tessellation default_points LOCAL glyph sphere size "0.1*0.1*0.1" offset 0,0,0 font default label Quaternions label_offset "1,1,-1" select_on material default selected_material default_selected render_shaded;
+gfx modify g_element "/" lines domain_mesh1d coordinate Geometry tessellation default LOCAL line line_base_size 0 select_on material default selected_material default_selected render_shaded;
+gfx modify g_element "/" points domain_datapoints as fitted_f coordinate data_coordinates tessellation default_points LOCAL glyph sphere size "0.04*0.04*0.04" offset 0,0,0 font default orientation host_fibre_vector scale_factors "0.1*0.001*0.001" select_on material orange selected_material default_selected render_shaded;
+gfx modify g_element "/" points domain_datapoints as fitted_n coordinate data_coordinates tessellation default_points LOCAL glyph sphere size "0.04*0.04*0.04" offset 0,0,0 font default orientation host_normal_vector scale_factors "0.1*0.001*0.001" select_on material green selected_material default_selected render_shaded;
+gfx modify g_element "/" surfaces domain_mesh2d as Q1 coordinate Geometry tessellation default LOCAL select_on invisible material default data Quaternions spectrum Q1 selected_material default_selected render_shaded;
+gfx modify g_element "/" surfaces domain_mesh2d as Q2 coordinate Geometry tessellation default LOCAL select_on invisible material default data Quaternions spectrum Q2 selected_material default_selected render_shaded;
+gfx modify g_element "/" surfaces domain_mesh2d as Q3 coordinate Geometry tessellation default LOCAL select_on invisible material default data Quaternions spectrum Q3 selected_material default_selected render_shaded;
+gfx modify g_element "/" surfaces domain_mesh2d as Q4 coordinate Geometry tessellation default LOCAL select_on invisible material default data Quaternions spectrum Q4 selected_material default_selected render_shaded;
+
+
+gfx modify spectrum Q1 autorange;
+gfx modify spectrum Q2 autorange;
+gfx modify spectrum Q3 autorange;
+gfx modify spectrum Q4 autorange;
+
+
+gfx define field ev1 finite_element num 3 real field component_names x y z;
+gfx modify data all define ev1;
+gfx evaluate dgroup "/" destination ev1 source host_fibre_vector;
+
+gfx define field ev2 finite_element num 3 real field component_names x y z;
+gfx modify data all define ev2;
+gfx evaluate dgroup "/" destination ev2 source host_sheet_vector;
+
+gfx define field ev3 finite_element num 3 real field component_names x y z;
+gfx modify data all define ev3;
+gfx evaluate dgroup "/" destination ev3 source host_normal_vector;
+
+
+
+gfx write data field ev1 & ev2 & ev3 syntheticEigenvectors
+
+

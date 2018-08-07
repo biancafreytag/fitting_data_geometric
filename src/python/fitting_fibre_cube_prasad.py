@@ -6,10 +6,15 @@
 # Add Python bindings directory to PATH
 import sys, os
 import numpy as np
+from math import cos, sin, pi
 import copy
 import exfile
 
-import myExFile
+try:
+    import myExFile
+except ImportError:
+    sys.path.insert(0, "/people/bfre608/myPythonLib")
+    import myExFile
 
 # Intialise OpenCMISS
 from opencmiss.iron import iron
@@ -17,10 +22,10 @@ from opencmiss.iron import iron
 def fit(numberGlobalXElements, numberGlobalYElements, numberGlobalZElements,
                useGeneratedMesh=True):
 
-    # Set problem parameters - Unit cube
-    height = 1.0
+
     width = 1.0
-    length = 1.0
+    length = 1.0# Set problem parameters - Unit cube
+    height = 1.0
 
     numberOfDimensions = 3
     NumberOfGaussXi = 2
@@ -190,13 +195,6 @@ def fit(numberGlobalXElements, numberGlobalYElements, numberGlobalZElements,
         geometricField.ParameterSetUpdateNodeDP(iron.FieldVariableTypes.U,iron.FieldParameterSetTypes.VALUES,1,1,8,3,length)
         geometricField.ParameterSetUpdateFinish(iron.FieldVariableTypes.U,iron.FieldParameterSetTypes.VALUES)
 
-    # Export undeformed mesh geometry
-    print("Writing undeformed geometry")
-    fields = iron.Fields()
-    fields.CreateRegion(region)
-    fields.NodesExport("UndeformedGeometry", "FORTRAN")
-    fields.ElementsExport("UndeformedGeometry", "FORTRAN")
-    fields.Finalise()
 
 
     #### READ DATA IN #####################################
@@ -230,21 +228,21 @@ def fit(numberGlobalXElements, numberGlobalYElements, numberGlobalZElements,
     # Evaluate data projection based on geometric field
     dataProjection.DataPointsProjectionEvaluate(
         iron.FieldParameterSetTypes.VALUES)
-    for dataPointIdx, dataPoint in enumerate(dataList):
-        print('Data point: ' + str(dataPointLocations[dataPointIdx,:]))
-        elementNumber = dataProjection.ResultElementNumberGet(dataPoint)
-        print('    ElementNumber: ' + str(elementNumber))
-        xi = dataProjection.ResultXiGet(dataPoint,numberOfDimensions)
-        print('    Xi: ' + str(xi))
-        distance = dataProjection.ResultDistanceGet(dataPoint)
-        print('    Distance: ' + str(distance))
+    # for dataPointIdx, dataPoint in enumerate(dataList):
+    #     print('Data point: ' + str(dataPointLocations[dataPointIdx,:]))
+    #     elementNumber = dataProjection.ResultElementNumberGet(dataPoint)
+    #     print('    ElementNumber: ' + str(elementNumber))
+    #     xi = dataProjection.ResultXiGet(dataPoint,numberOfDimensions)
+    #     print('    Xi: ' + str(xi))
+    #     distance = dataProjection.ResultDistanceGet(dataPoint)
+    #     print('    Distance: ' + str(distance))
 
     # Create mesh topology for data projection
     mesh.TopologyDataPointsCalculateProjection(dataProjection)
     # Create decomposition topology for data projection
     decomposition.TopologyDataProjectionCalculate()
 
-    dataProjection.ResultAnalysisOutput("")
+    # dataProjection.ResultAnalysisOutput("")
 
     dataErrorVector = np.zeros((numberOfDataPoints, numberOfDimensions))
     dataErrorDistance = np.zeros(numberOfDataPoints)
@@ -269,7 +267,7 @@ def fit(numberGlobalXElements, numberGlobalYElements, numberGlobalZElements,
 
 
     # write data points to exdata file for CMGUI
-    offset = 0
+    # offset = 0
     # exfile.writeExdataFile(
     #     "DataPoints.part" + str(computationalNodeNumber) + ".exdata",
     #     dataPointLocations, dataErrorVector, dataErrorDistance, offset)
@@ -298,20 +296,67 @@ def fit(numberGlobalXElements, numberGlobalYElements, numberGlobalZElements,
     # Create the dependent field
     dependentField = iron.Field()
     equationsSet.DependentCreateStart(dependentFieldUserNumber, dependentField)
-    dependentField.VariableLabelSet(iron.FieldVariableTypes.U,"Dependent")
-    dependentField.NumberOfComponentsSet(iron.FieldVariableTypes.U,numberOfDimensions)
-    dependentField.NumberOfComponentsSet(iron.FieldVariableTypes.DELUDELN,numberOfDimensions)
+    dependentField.VariableLabelSet(iron.FieldVariableTypes.U,"Quaternions")
+    dependentField.NumberOfComponentsSet(iron.FieldVariableTypes.U, 4)
+    dependentField.NumberOfComponentsSet(iron.FieldVariableTypes.DELUDELN, 4)
     if InterpolationType == 4:
         dependentField.fieldScalingType = iron.FieldScalingTypes.ARITHMETIC_MEAN
     equationsSet.DependentCreateFinish()
 
-    # Initialise dependent field to geometry field
-    for component in [1,2,3]:
-        iron.Field.ParametersToFieldParametersComponentCopy(
-            geometricField,iron.FieldVariableTypes.U,iron.FieldParameterSetTypes.VALUES,component,
-            dependentField,iron.FieldVariableTypes.U,iron.FieldParameterSetTypes.VALUES,component)
+    angle = 90/180.0*pi
+    axis = [0.5,0,0.5]
+    magnitude = np.sqrt(axis[0]**2+axis[1]**2+axis[2]**2)
+    axis_unit = [axis[0] / magnitude, axis[1] / magnitude, axis[2] / magnitude]
 
+    a = cos(angle/2)
+    b = sin(angle/2)*axis_unit[0]
+    c = sin(angle/2)*axis_unit[1]
+    d = sin(angle/2)*axis_unit[2]
 
+    # initialise dependent field
+    dependentField.ParameterSetUpdateStart(iron.FieldVariableTypes.U, iron.FieldParameterSetTypes.VALUES)
+    # node 1
+    dependentField.ParameterSetUpdateNodeDP(iron.FieldVariableTypes.U, iron.FieldParameterSetTypes.VALUES, 1, 1, 1, 1, a)
+    dependentField.ParameterSetUpdateNodeDP(iron.FieldVariableTypes.U, iron.FieldParameterSetTypes.VALUES, 1, 1, 1, 2, b)
+    dependentField.ParameterSetUpdateNodeDP(iron.FieldVariableTypes.U, iron.FieldParameterSetTypes.VALUES, 1, 1, 1, 3, c)
+    dependentField.ParameterSetUpdateNodeDP(iron.FieldVariableTypes.U, iron.FieldParameterSetTypes.VALUES, 1, 1, 1, 4, d)
+    # node 2
+    dependentField.ParameterSetUpdateNodeDP(iron.FieldVariableTypes.U, iron.FieldParameterSetTypes.VALUES, 1, 1, 2, 1, a)
+    dependentField.ParameterSetUpdateNodeDP(iron.FieldVariableTypes.U, iron.FieldParameterSetTypes.VALUES, 1, 1, 2, 2, b)
+    dependentField.ParameterSetUpdateNodeDP(iron.FieldVariableTypes.U, iron.FieldParameterSetTypes.VALUES, 1, 1, 2, 3, c)
+    dependentField.ParameterSetUpdateNodeDP(iron.FieldVariableTypes.U, iron.FieldParameterSetTypes.VALUES, 1, 1, 2, 4, d)
+    # node 3
+    dependentField.ParameterSetUpdateNodeDP(iron.FieldVariableTypes.U, iron.FieldParameterSetTypes.VALUES, 1, 1, 3, 1, a)
+    dependentField.ParameterSetUpdateNodeDP(iron.FieldVariableTypes.U, iron.FieldParameterSetTypes.VALUES, 1, 1, 3, 2, b)
+    dependentField.ParameterSetUpdateNodeDP(iron.FieldVariableTypes.U, iron.FieldParameterSetTypes.VALUES, 1, 1, 3, 3, c)
+    dependentField.ParameterSetUpdateNodeDP(iron.FieldVariableTypes.U, iron.FieldParameterSetTypes.VALUES, 1, 1, 3, 4, d)
+    # node 4
+    dependentField.ParameterSetUpdateNodeDP(iron.FieldVariableTypes.U, iron.FieldParameterSetTypes.VALUES, 1, 1, 4, 1, a)
+    dependentField.ParameterSetUpdateNodeDP(iron.FieldVariableTypes.U, iron.FieldParameterSetTypes.VALUES, 1, 1, 4, 2, b)
+    dependentField.ParameterSetUpdateNodeDP(iron.FieldVariableTypes.U, iron.FieldParameterSetTypes.VALUES, 1, 1, 4, 3, c)
+    dependentField.ParameterSetUpdateNodeDP(iron.FieldVariableTypes.U, iron.FieldParameterSetTypes.VALUES, 1, 1, 4, 4, d)
+    # node 5
+    dependentField.ParameterSetUpdateNodeDP(iron.FieldVariableTypes.U, iron.FieldParameterSetTypes.VALUES, 1, 1, 5, 1, a)
+    dependentField.ParameterSetUpdateNodeDP(iron.FieldVariableTypes.U, iron.FieldParameterSetTypes.VALUES, 1, 1, 5, 2, b)
+    dependentField.ParameterSetUpdateNodeDP(iron.FieldVariableTypes.U, iron.FieldParameterSetTypes.VALUES, 1, 1, 5, 3, c)
+    dependentField.ParameterSetUpdateNodeDP(iron.FieldVariableTypes.U, iron.FieldParameterSetTypes.VALUES, 1, 1, 5, 4, d)
+    # node 6
+    dependentField.ParameterSetUpdateNodeDP(iron.FieldVariableTypes.U, iron.FieldParameterSetTypes.VALUES, 1, 1, 6, 1, a)
+    dependentField.ParameterSetUpdateNodeDP(iron.FieldVariableTypes.U, iron.FieldParameterSetTypes.VALUES, 1, 1, 6, 2, b)
+    dependentField.ParameterSetUpdateNodeDP(iron.FieldVariableTypes.U, iron.FieldParameterSetTypes.VALUES, 1, 1, 6, 3, c)
+    dependentField.ParameterSetUpdateNodeDP(iron.FieldVariableTypes.U, iron.FieldParameterSetTypes.VALUES, 1, 1, 6, 4, d)
+    # node 7
+    dependentField.ParameterSetUpdateNodeDP(iron.FieldVariableTypes.U, iron.FieldParameterSetTypes.VALUES, 1, 1, 7, 1, a)
+    dependentField.ParameterSetUpdateNodeDP(iron.FieldVariableTypes.U, iron.FieldParameterSetTypes.VALUES, 1, 1, 7, 2, b)
+    dependentField.ParameterSetUpdateNodeDP(iron.FieldVariableTypes.U, iron.FieldParameterSetTypes.VALUES, 1, 1, 7, 3, c)
+    dependentField.ParameterSetUpdateNodeDP(iron.FieldVariableTypes.U, iron.FieldParameterSetTypes.VALUES, 1, 1, 7, 4, d)
+    # node 8
+    dependentField.ParameterSetUpdateNodeDP(iron.FieldVariableTypes.U, iron.FieldParameterSetTypes.VALUES, 1, 1, 8, 1, a)
+    dependentField.ParameterSetUpdateNodeDP(iron.FieldVariableTypes.U, iron.FieldParameterSetTypes.VALUES, 1, 1, 8, 2, b)
+    dependentField.ParameterSetUpdateNodeDP(iron.FieldVariableTypes.U, iron.FieldParameterSetTypes.VALUES, 1, 1, 8, 3, c)
+    dependentField.ParameterSetUpdateNodeDP(iron.FieldVariableTypes.U, iron.FieldParameterSetTypes.VALUES, 1, 1, 8, 4, d)
+
+    dependentField.ParameterSetUpdateFinish(iron.FieldVariableTypes.U, iron.FieldParameterSetTypes.VALUES)
 
 
 
@@ -332,19 +377,6 @@ def fit(numberGlobalXElements, numberGlobalYElements, numberGlobalZElements,
     independentField.NumberOfComponentsSet(iron.FieldVariableTypes.U, 6)
     independentField.NumberOfComponentsSet(iron.FieldVariableTypes.V, 6)
 
-    independentField.ComponentMeshComponentSet(iron.FieldVariableTypes.U, 1, 1)
-    independentField.ComponentMeshComponentSet(iron.FieldVariableTypes.U, 2, 1)
-    independentField.ComponentMeshComponentSet(iron.FieldVariableTypes.U, 3, 1)
-    independentField.ComponentMeshComponentSet(iron.FieldVariableTypes.U, 4, 1)
-    independentField.ComponentMeshComponentSet(iron.FieldVariableTypes.U, 5, 1)
-    independentField.ComponentMeshComponentSet(iron.FieldVariableTypes.U, 6, 1)
-    independentField.ComponentMeshComponentSet(iron.FieldVariableTypes.V, 1, 1)
-    independentField.ComponentMeshComponentSet(iron.FieldVariableTypes.V, 2, 1)
-    independentField.ComponentMeshComponentSet(iron.FieldVariableTypes.V, 3, 1)
-    independentField.ComponentMeshComponentSet(iron.FieldVariableTypes.V, 4, 1)
-    independentField.ComponentMeshComponentSet(iron.FieldVariableTypes.V, 5, 1)
-    independentField.ComponentMeshComponentSet(iron.FieldVariableTypes.V, 6, 1)
-
     independentField.ComponentInterpolationSet(iron.FieldVariableTypes.U, 1, iron.FieldInterpolationTypes.DATA_POINT_BASED)
     independentField.ComponentInterpolationSet(iron.FieldVariableTypes.U, 2, iron.FieldInterpolationTypes.DATA_POINT_BASED)
     independentField.ComponentInterpolationSet(iron.FieldVariableTypes.U, 3, iron.FieldInterpolationTypes.DATA_POINT_BASED)
@@ -358,12 +390,25 @@ def fit(numberGlobalXElements, numberGlobalYElements, numberGlobalZElements,
     independentField.ComponentInterpolationSet(iron.FieldVariableTypes.V, 5, iron.FieldInterpolationTypes.DATA_POINT_BASED)
     independentField.ComponentInterpolationSet(iron.FieldVariableTypes.V, 6, iron.FieldInterpolationTypes.DATA_POINT_BASED)
 
+    independentField.ComponentMeshComponentSet(iron.FieldVariableTypes.U, 1, 1)
+    independentField.ComponentMeshComponentSet(iron.FieldVariableTypes.U, 2, 1)
+    independentField.ComponentMeshComponentSet(iron.FieldVariableTypes.U, 3, 1)
+    independentField.ComponentMeshComponentSet(iron.FieldVariableTypes.U, 4, 1)
+    independentField.ComponentMeshComponentSet(iron.FieldVariableTypes.U, 5, 1)
+    independentField.ComponentMeshComponentSet(iron.FieldVariableTypes.U, 6, 1)
+    independentField.ComponentMeshComponentSet(iron.FieldVariableTypes.V, 1, 1)
+    independentField.ComponentMeshComponentSet(iron.FieldVariableTypes.V, 2, 1)
+    independentField.ComponentMeshComponentSet(iron.FieldVariableTypes.V, 3, 1)
+    independentField.ComponentMeshComponentSet(iron.FieldVariableTypes.V, 4, 1)
+    independentField.ComponentMeshComponentSet(iron.FieldVariableTypes.V, 5, 1)
+    independentField.ComponentMeshComponentSet(iron.FieldVariableTypes.V, 6, 1)
+
+
+
     independentField.CreateFinish()
 
     equationsSet.IndependentCreateStart(independentFieldUserNumber, independentField)
     equationsSet.IndependentCreateFinish()
-
-
 
 
     # loop over each element's data points and set independent field values to data point locations
@@ -372,19 +417,21 @@ def fit(numberGlobalXElements, numberGlobalYElements, numberGlobalZElements,
     if (elementDomain == computationalNodeNumber):
         numberOfProjectedDataPoints = decomposition.TopologyNumberOfElementDataPointsGet(1)
         for dataPoint in range(numberOfProjectedDataPoints):
-            dataPointId = dataPoint + 1
-            dataPointNumber = decomposition.TopologyElementDataPointUserNumberGet(1, dataPointId)
-            dataList = dataPoints.PositionGet(dataPointNumber, numberOfDimensions)
+            dataPointId = dataPoint +1
 
-            # set data point field values
-            for p in range(numberOfProjectedDataPoints):
-                independentField.ParameterSetUpdateElementDataPointDP(iron.FieldVariableTypes.U, iron.FieldParameterSetTypes.VALUES, elementNumber, dataPointId, 1, D11[p])
-                independentField.ParameterSetUpdateElementDataPointDP(iron.FieldVariableTypes.U, iron.FieldParameterSetTypes.VALUES, elementNumber, dataPointId, 2, D12[p])
-                independentField.ParameterSetUpdateElementDataPointDP(iron.FieldVariableTypes.U, iron.FieldParameterSetTypes.VALUES, elementNumber, dataPointId, 3, D13[p])
-                independentField.ParameterSetUpdateElementDataPointDP(iron.FieldVariableTypes.U, iron.FieldParameterSetTypes.VALUES, elementNumber, dataPointId, 4, D22[p])
-                independentField.ParameterSetUpdateElementDataPointDP(iron.FieldVariableTypes.U, iron.FieldParameterSetTypes.VALUES, elementNumber, dataPointId, 5, D23[p])
-                independentField.ParameterSetUpdateElementDataPointDP(iron.FieldVariableTypes.U, iron.FieldParameterSetTypes.VALUES, elementNumber, dataPointId, 6, D33[p])
+            independentField.ParameterSetUpdateElementDataPointDP(iron.FieldVariableTypes.U, iron.FieldParameterSetTypes.VALUES, elementNumber, dataPointId, 1, D11[dataPoint])
+            independentField.ParameterSetUpdateElementDataPointDP(iron.FieldVariableTypes.U, iron.FieldParameterSetTypes.VALUES, elementNumber, dataPointId, 2, D12[dataPoint])
+            independentField.ParameterSetUpdateElementDataPointDP(iron.FieldVariableTypes.U, iron.FieldParameterSetTypes.VALUES, elementNumber, dataPointId, 3, D13[dataPoint])
+            independentField.ParameterSetUpdateElementDataPointDP(iron.FieldVariableTypes.U, iron.FieldParameterSetTypes.VALUES, elementNumber, dataPointId, 4, D22[dataPoint])
+            independentField.ParameterSetUpdateElementDataPointDP(iron.FieldVariableTypes.U, iron.FieldParameterSetTypes.VALUES, elementNumber, dataPointId, 5, D23[dataPoint])
+            independentField.ParameterSetUpdateElementDataPointDP(iron.FieldVariableTypes.U, iron.FieldParameterSetTypes.VALUES, elementNumber, dataPointId, 6, D33[dataPoint])
 
+            independentField.ParameterSetUpdateElementDataPointDP(iron.FieldVariableTypes.V, iron.FieldParameterSetTypes.VALUES, elementNumber, dataPointId, 1, 1)
+            independentField.ParameterSetUpdateElementDataPointDP(iron.FieldVariableTypes.V, iron.FieldParameterSetTypes.VALUES, elementNumber, dataPointId, 2, 1)
+            independentField.ParameterSetUpdateElementDataPointDP(iron.FieldVariableTypes.V, iron.FieldParameterSetTypes.VALUES, elementNumber, dataPointId, 3, 1)
+            independentField.ParameterSetUpdateElementDataPointDP(iron.FieldVariableTypes.V, iron.FieldParameterSetTypes.VALUES, elementNumber, dataPointId, 4, 1)
+            independentField.ParameterSetUpdateElementDataPointDP(iron.FieldVariableTypes.V, iron.FieldParameterSetTypes.VALUES, elementNumber, dataPointId, 5, 1)
+            independentField.ParameterSetUpdateElementDataPointDP(iron.FieldVariableTypes.V, iron.FieldParameterSetTypes.VALUES, elementNumber, dataPointId, 6, 1)
 
     # Create material field (Sobolev parameters)
 
@@ -402,7 +449,7 @@ def fit(numberGlobalXElements, numberGlobalYElements, numberGlobalZElements,
     equations = iron.Equations()
     equationsSet.EquationsCreateStart(equations)
     equations.sparsityType = iron.EquationsSparsityTypes.SPARSE
-    equations.outputType = iron.EquationsOutputTypes.NONE
+    # equations.outputType = iron.EquationsOutputTypes.ELEMENT_MATRIX
     # equations.outputType = iron.EquationsOutputTypes.MATRIX
     equationsSet.EquationsCreateFinish()
 
@@ -437,9 +484,10 @@ def fit(numberGlobalXElements, numberGlobalYElements, numberGlobalZElements,
         nonLinearSolver.outputType = iron.SolverOutputTypes.PROGRESS
         nonLinearSolver.NewtonJacobianCalculationTypeSet(iron.JacobianCalculationTypes.FD)
         nonLinearSolver.NewtonLinearSolverGet(linearSolver)
-        nonLinearSolver.NewtonAbsoluteToleranceSet(1e-14)
-        nonLinearSolver.NewtonSolutionToleranceSet(1e-14)
-        nonLinearSolver.NewtonRelativeToleranceSet(1e-14)
+        nonLinearSolver.NewtonAbsoluteToleranceSet(1E-14)
+        nonLinearSolver.NewtonSolutionToleranceSet(1E-14)
+        nonLinearSolver.NewtonRelativeToleranceSet(1E-14)
+        nonLinearSolver.NewtonMaximumIterationsSet(1000)
         linearSolver.linearType = iron.LinearSolverTypes.ITERATIVE
         problem.SolversCreateFinish()
     else:
@@ -465,29 +513,40 @@ def fit(numberGlobalXElements, numberGlobalYElements, numberGlobalZElements,
     equationsSetIndex = solverEquations.EquationsSetAdd(equationsSet)
     problem.SolverEquationsCreateFinish()
 
-    # =================================================================
-    # Boundary Conditions
-    # =================================================================
-
+    # # =================================================================
+    # # Boundary Conditions
+    # # =================================================================
+    #
     # Create boundary conditions and set first and last nodes to 0.0 and 1.0
     boundaryConditions = iron.BoundaryConditions()
     solverEquations.BoundaryConditionsCreateStart(boundaryConditions)
-
+    #
     meshNodes = iron.MeshNodes()
     mesh.NodesGet(1,meshNodes)
-    for node in range(1,meshNodes.NumberOfNodesGet()+1):
-        xValue = geometricField.ParameterSetGetNodeDP(iron.FieldVariableTypes.U,iron.FieldParameterSetTypes.VALUES,1,1,node,1)
-        yValue = geometricField.ParameterSetGetNodeDP(iron.FieldVariableTypes.U,iron.FieldParameterSetTypes.VALUES,1,1,node,2)
-        zValue = geometricField.ParameterSetGetNodeDP(iron.FieldVariableTypes.U,iron.FieldParameterSetTypes.VALUES,1,1,node,3)
-        # Set x=0 nodes to no x,y,z displacment
-        if np.isclose(xValue, 0.0):
-            for component in [1,2,3]:
-                boundaryConditions.AddNode(dependentField,
-                                           iron.FieldVariableTypes.U, 1, 1,
-                                           node, component,
-                                           iron.BoundaryConditionsTypes.FIXED,
-                                           0.0)
+    # for node in range(1,meshNodes.NumberOfNodesGet()+1):
+    #     xValue = geometricField.ParameterSetGetNodeDP(iron.FieldVariableTypes.U,iron.FieldParameterSetTypes.VALUES,1,1,node,1)
+    #     yValue = geometricField.ParameterSetGetNodeDP(iron.FieldVariableTypes.U,iron.FieldParameterSetTypes.VALUES,1,1,node,2)
+    #     zValue = geometricField.ParameterSetGetNodeDP(iron.FieldVariableTypes.U,iron.FieldParameterSetTypes.VALUES,1,1,node,3)
+    #     # Set x=0 nodes to no x,y,z displacment
+    #     if np.isclose(xValue, 0.0):
+    #         for component in [1,2,3]:
+    #             boundaryConditions.AddNode(dependentField,
+    #                                        iron.FieldVariableTypes.U, 1, 1,
+    #                                        node, component,
+    #                                        iron.BoundaryConditionsTypes.FIXED,
+    #                                        0.0)
     solverEquations.BoundaryConditionsCreateFinish()
+
+
+    # Export undeformed mesh geometry
+    print("Writing undeformed geometry")
+    fields = iron.Fields()
+    fields.CreateRegion(region)
+    fields.NodesExport("UndeformedGeometry", "FORTRAN")
+    fields.ElementsExport("UndeformedGeometry", "FORTRAN")
+    fields.Finalise()
+
+
 
     # =================================================================
     # S o l v e    a n d    E x p o r t    D a t a
@@ -498,18 +557,6 @@ def fit(numberGlobalXElements, numberGlobalYElements, numberGlobalZElements,
         print("Solving fitting problem, iteration: " + str(iteration))
         problem.Solve()
 
-        # Copy dependent field to geometric
-        for componentIdx in range(1, 4):
-            dependentField.ParametersToFieldParametersComponentCopy(
-                iron.FieldVariableTypes.U, iron.FieldParameterSetTypes.VALUES,
-                componentIdx, geometricField, iron.FieldVariableTypes.U,
-                iron.FieldParameterSetTypes.VALUES, componentIdx)
-        # Reproject
-        dataProjection.DataPointsProjectionEvaluate(
-            iron.FieldParameterSetTypes.VALUES)
-        # dataProjection.ResultAnalysisOutput("")
-        rmsError = dataProjection.ResultRMSErrorGet()
-        print("RMS error = " + str(rmsError))
         # Export fields
         print("Writing deformed geometry")
         fields = iron.Fields()
@@ -535,6 +582,3 @@ if __name__ == "__main__":
     numberGlobalYElements = 1
     numberGlobalZElements = 1
     fit(numberGlobalXElements, numberGlobalYElements,numberGlobalZElements)
-
-
-
