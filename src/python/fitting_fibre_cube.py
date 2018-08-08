@@ -19,7 +19,7 @@ except ImportError:
 # Intialise OpenCMISS
 from opencmiss.iron import iron
 
-def fit(numberGlobalXElements, numberGlobalYElements, numberGlobalZElements,
+def fit(numberGlobalXElements, numberGlobalYElements, numberGlobalZElements,directory,
                useGeneratedMesh=True):
 
 
@@ -201,7 +201,7 @@ def fit(numberGlobalXElements, numberGlobalYElements, numberGlobalZElements,
 
 
     # Create the data points
-    dataPointsFromFile = myExFile.readExFile('data_coordinates.exdata')
+    dataPointsFromFile = myExFile.readExFile(directory+'data_coordinates.exdata')
     dataList = np.arange(1,dataPointsFromFile.shape[0]+1)
     numberOfDataPoints = len(dataList)
     print("Number of data points: " + str(numberOfDataPoints))
@@ -252,7 +252,7 @@ def fit(numberGlobalXElements, numberGlobalYElements, numberGlobalZElements,
 
 
 
-    tensorsFromFile = myExFile.readExFile('toyTensor.exdata')
+    tensorsFromFile = myExFile.readExFile(directory+'syntheticTensors.exdata')
     D11 = tensorsFromFile[:,1]
     D12 = tensorsFromFile[:,2]
     D13 = tensorsFromFile[:,3]
@@ -581,4 +581,5 @@ if __name__ == "__main__":
     numberGlobalXElements = 1
     numberGlobalYElements = 1
     numberGlobalZElements = 1
-    fit(numberGlobalXElements, numberGlobalYElements,numberGlobalZElements)
+    directory = os.getcwd()+"/d/"
+    fit(numberGlobalXElements, numberGlobalYElements,numberGlobalZElements,directory)
