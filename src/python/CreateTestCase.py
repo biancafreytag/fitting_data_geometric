@@ -201,6 +201,7 @@ os.rename(directoryOld+'syntheticTensors.exdata', directoryNew+'syntheticTensors
 os.rename(directoryOld+'syntheticDataCoordinates.exdata', directoryNew+'syntheticDataCoordinates.exdata')
 copyfile(directoryOld+'UndeformedGeometry.exelem', directoryNew+'UndeformedGeometry.exelem')
 copyfile(directoryOld+'viewCube.cmgui', directoryNew+'viewCube.cmgui')
+copyfile(directoryOld+'FE_coordinates.exdata', directoryNew+'FE_coordinates.exdata')
 os.remove(directoryOld+'syntheticEigenvectors.exdata')
 
 print "done"

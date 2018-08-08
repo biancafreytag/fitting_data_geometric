@@ -201,7 +201,7 @@ def fit(numberGlobalXElements, numberGlobalYElements, numberGlobalZElements,dire
 
 
     # Create the data points
-    dataPointsFromFile = myExFile.readExFile(directory+'data_coordinates.exdata')
+    dataPointsFromFile = myExFile.readExFile(directory+'syntheticDataCoordinates.exdata')
     dataList = np.arange(1,dataPointsFromFile.shape[0]+1)
     numberOfDataPoints = len(dataList)
     print("Number of data points: " + str(numberOfDataPoints))
@@ -218,8 +218,8 @@ def fit(numberGlobalXElements, numberGlobalYElements, numberGlobalZElements,dire
     dataProjection = iron.DataProjection()
     dataProjection.CreateStart(dataProjectionUserNumber, dataPoints,
                                geometricField, iron.FieldVariableTypes.U)
-    dataProjection.AbsoluteToleranceSet(1.0e-14)
-    dataProjection.RelativeToleranceSet(1.0e-14)
+    dataProjection.AbsoluteToleranceSet(1.0e-10)
+    dataProjection.RelativeToleranceSet(1.0e-10)
     dataProjection.MaximumNumberOfIterationsSet(int(1e9))
     dataProjection.ProjectionTypeSet(
         iron.DataProjectionProjectionTypes.ALL_ELEMENTS)
@@ -303,10 +303,11 @@ def fit(numberGlobalXElements, numberGlobalYElements, numberGlobalZElements,dire
         dependentField.fieldScalingType = iron.FieldScalingTypes.ARITHMETIC_MEAN
     equationsSet.DependentCreateFinish()
 
-    angle = 90/180.0*pi
-    axis = [0.5,0,0.5]
-    magnitude = np.sqrt(axis[0]**2+axis[1]**2+axis[2]**2)
-    axis_unit = [axis[0] / magnitude, axis[1] / magnitude, axis[2] / magnitude]
+    angle = 20/180.0*pi
+
+    axis = np.array([0, 0, 1])
+    axis_unit = axis ** 2 / (np.sum(axis ** 2))
+
 
     a = cos(angle/2)
     b = sin(angle/2)*axis_unit[0]
@@ -482,7 +483,8 @@ def fit(numberGlobalXElements, numberGlobalYElements, numberGlobalZElements,dire
         problem.SolversCreateStart()
         problem.SolverGet([iron.ControlLoopIdentifiers.NODE],1,nonLinearSolver)
         nonLinearSolver.outputType = iron.SolverOutputTypes.PROGRESS
-        nonLinearSolver.NewtonJacobianCalculationTypeSet(iron.JacobianCalculationTypes.FD)
+        nonLinearSolver.NewtonJacobianCalculationTypeSet(iron.JacobianCalculationTypes.EQUATIONS)
+        # nonLinearSolver.NewtonJacobianCalculationTypeSet(iron.JacobianCalculationTypes.FD)
         nonLinearSolver.NewtonLinearSolverGet(linearSolver)
         nonLinearSolver.NewtonAbsoluteToleranceSet(1E-14)
         nonLinearSolver.NewtonSolutionToleranceSet(1E-14)
@@ -542,8 +544,8 @@ def fit(numberGlobalXElements, numberGlobalYElements, numberGlobalZElements,dire
     print("Writing undeformed geometry")
     fields = iron.Fields()
     fields.CreateRegion(region)
-    fields.NodesExport("UndeformedGeometry", "FORTRAN")
-    fields.ElementsExport("UndeformedGeometry", "FORTRAN")
+    fields.NodesExport(directory+"UndeformedGeometry", "FORTRAN")
+    fields.ElementsExport(directory+"UndeformedGeometry", "FORTRAN")
     fields.Finalise()
 
 
@@ -561,8 +563,8 @@ def fit(numberGlobalXElements, numberGlobalYElements, numberGlobalZElements,dire
         print("Writing deformed geometry")
         fields = iron.Fields()
         fields.CreateRegion(region)
-        fields.NodesExport("DeformedGeometry" + str(iteration), "FORTRAN")
-        fields.ElementsExport("DeformedGeometry" + str(iteration), "FORTRAN")
+        fields.NodesExport(directory+"DeformedGeometry" + str(iteration), "FORTRAN")
+        #fields.ElementsExport(directory+"DeformedGeometry" + str(iteration), "FORTRAN")
         fields.Finalise()
 
     problem.Destroy()
@@ -581,5 +583,5 @@ if __name__ == "__main__":
     numberGlobalXElements = 1
     numberGlobalYElements = 1
     numberGlobalZElements = 1
-    directory = os.getcwd()+"/d/"
+    directory = os.getcwd()+"/a/"
     fit(numberGlobalXElements, numberGlobalYElements,numberGlobalZElements,directory)

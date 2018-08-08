@@ -2,8 +2,8 @@ gfx read nodes UndeformedGeometry.part0.exnode
 gfx read elements UndeformedGeometry.exelem
 gfx def faces egroup Region
 
-gfx read data data_coordinates.exdata
-gfx read data toyTensor.exdata
+gfx read data syntheticDataCoordinates.exdata
+gfx read data syntheticTensors.exdata
 
 
 gfx define field cube_location find_mesh_location mesh mesh3d mesh_field Geometry source_field data_coordinates;
